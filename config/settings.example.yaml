@@ -1,0 +1,28 @@
+# JARVIS settings — copy the values you want to change into
+#   %APPDATA%\JARVIS\settings.yaml
+# Everything not listed keeps its built-in default.
+
+ai:
+  host: "http://127.0.0.1:11434"   # Ollama server
+  model: "qwen3:8b"                # main model (Q4_K_M, ~5.2 GB)
+  fallback_models: ["qwen2.5:7b-instruct"]
+  temperature: 0.4
+  num_ctx: 8192                    # context window; 8k fits RTX 3060 with STT alongside
+  keep_alive: "30m"                # how long the model stays in VRAM when idle
+  think: false                     # Qwen3 reasoning mode (slower, sometimes smarter)
+  max_tool_iterations: 8
+  language: "ru"
+
+voice:                             # used from Phase 2
+  wake_word: "jarvis"
+  idle_timeout_seconds: 15         # one of 5, 10, 15, 20, 30, 60
+
+performance:
+  profile: "balanced"              # eco | balanced | performance
+
+security:
+  confirm_moderate: false
+  blocked_tools: []
+
+logging:
+  level: "INFO"
