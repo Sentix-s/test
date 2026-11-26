@@ -21,6 +21,7 @@ from jarvis.voice.models import ModelStore
 log = logging.getLogger(__name__)
 
 _dll_setup_done = False
+LEAD_SILENCE_S = 0.3
 
 
 _extra_cuda_dir: Path | None = None
@@ -151,6 +152,8 @@ class WhisperSTT:
             data = data.astype(np.float32) / 32768.0
         if max_seconds:
             data = data[: int(16000 * max_seconds)]
+        # Whisper tends to drop the first word (often the wake word) when speech starts at sample 0.
+        data = np.concatenate([np.zeros(int(16000 * LEAD_SILENCE_S), dtype=np.float32), data.astype(np.float32)])
         segments, _info = self._model.transcribe(
             data, language=language or self.language, beam_size=self.beam_size, vad_filter=False,
             condition_on_previous_text=False, without_timestamps=True, hotwords=self.hotwords,
