@@ -128,14 +128,9 @@ class SetupWizard(QDialog):
 
     # ------------------------------------------------------------- plumbing
     def _bg(self, fn: Callable[[], None]) -> threading.Thread:
-        def run() -> None:
-            try:
-                fn()
-            except Exception:  # noqa: BLE001
-                log.exception("Setup step failed")
-        t = threading.Thread(target=run, name="setup", daemon=True)
-        t.start()
-        return t
+        from jarvis.gui.workers import run_bg
+
+        return run_bg(fn, "setup")
 
     def _emit(self, i: int, state: str, text: str) -> None:
         with self._ok_lock:
@@ -239,6 +234,15 @@ class SetupWizard(QDialog):
                         store.ensure_voice(v.tts_voice_en, lambda _l, d, t: self._sig.progress.emit(2, d, t))
                     except OSError as exc:
                         log.warning("English voice: %s", exc)
+                from jarvis.voice import cuda_libs
+
+                if (getattr(__import__("sys"), "frozen", False) and cuda_libs.nvidia_gpu_present()
+                        and not cuda_libs.installed(self.paths.data_dir)):
+                    self._emit(2, "work", "ускорение распознавания на видеокарте NVIDIA (~1 ГБ, один раз)…")
+                    try:
+                        cuda_libs.download(self.paths.data_dir, lambda _l, d, t: self._sig.progress.emit(2, d, t))
+                    except Exception as exc:  # noqa: BLE001 - CPU recognition still works
+                        log.warning("CUDA libraries download failed: %s", exc)
                 _dev, _ct, model = resolve_device(v.stt_device, v.stt_model)
                 self._emit(2, "work", f"модель распознавания речи {model}…")
                 store.ensure_whisper(model)

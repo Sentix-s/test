@@ -23,6 +23,15 @@ log = logging.getLogger(__name__)
 _dll_setup_done = False
 
 
+_extra_cuda_dir: Path | None = None
+
+
+def set_cuda_dir(path: Path) -> None:
+    """Folder with CUDA DLLs downloaded by the app (see jarvis.voice.cuda_libs)."""
+    global _extra_cuda_dir
+    _extra_cuda_dir = path
+
+
 def setup_cuda_dlls() -> list[str]:
     """Make pip-installed NVIDIA DLLs visible to CTranslate2 (Windows only)."""
     global _dll_setup_done
@@ -30,6 +39,10 @@ def setup_cuda_dlls() -> list[str]:
     if sys.platform != "win32" or _dll_setup_done:
         return added
     _dll_setup_done = True
+    if _extra_cuda_dir is not None and _extra_cuda_dir.is_dir():
+        os.add_dll_directory(str(_extra_cuda_dir))  # type: ignore[attr-defined]
+        os.environ["PATH"] = str(_extra_cuda_dir) + os.pathsep + os.environ.get("PATH", "")
+        added.append(str(_extra_cuda_dir))
     for entry in sys.path:
         nvidia = Path(entry) / "nvidia"
         if not nvidia.is_dir():
@@ -60,6 +73,9 @@ def _cuda_libs_present() -> bool:
     """cuDNN/cuBLAS must be loadable, otherwise CTranslate2 aborts at the first
     transcription. Check the DLLs exist before choosing the GPU."""
     if sys.platform != "win32":
+        return True
+    if _extra_cuda_dir is not None and (_extra_cuda_dir / "cudnn64_9.dll").exists() \
+            and (_extra_cuda_dir / "cublas64_12.dll").exists():
         return True
     found = {"cublas": False, "cudnn": False}
     for entry in sys.path:

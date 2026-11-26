@@ -221,3 +221,34 @@ def test_utterances_ignored_while_off():
     s.stop()
     s.on_utterance("Джарвис, привет")
     assert asked == [] and s.state is VoiceState.OFF
+
+
+def test_cuda_dll_extraction(tmp_path):
+    import zipfile
+
+    from jarvis.voice import cuda_libs
+
+    wheel = tmp_path / "nvidia_cudnn_cu12-9.0-py3-none-win_amd64.whl"
+    with zipfile.ZipFile(wheel, "w") as z:
+        z.writestr("nvidia/cudnn/bin/cudnn64_9.dll", b"x")
+        z.writestr("nvidia/cudnn/bin/cudnn_ops64_9.dll", b"y")
+        z.writestr("nvidia/cudnn/include/cudnn.h", b"h")
+        z.writestr("nvidia_cudnn_cu12-9.0.dist-info/RECORD", b"")
+    assert sorted(cuda_libs.extract_dlls(wheel, tmp_path / "cuda")) == ["cudnn64_9.dll", "cudnn_ops64_9.dll"]
+    assert not cuda_libs.installed(tmp_path)  # cuBLAS still missing
+    (tmp_path / "cuda" / "cublas64_12.dll").write_bytes(b"z")
+    assert cuda_libs.installed(tmp_path)
+
+
+def test_cuda_wheel_lookup_on_pypi():
+    """Real PyPI metadata: Windows wheels for both packages must exist."""
+    import httpx
+
+    from jarvis.voice import cuda_libs
+
+    try:
+        for pkg, (prefix, _dll) in cuda_libs.PACKAGES.items():
+            url, size = cuda_libs._wheel_url(pkg, prefix)
+            assert url.endswith("win_amd64.whl") and size > 50_000_000
+    except httpx.HTTPError as exc:
+        pytest.skip(f"PyPI unreachable: {exc}")

@@ -66,6 +66,7 @@ def run_gui(minimized: bool = False, force_setup: bool = False, home: str | None
         qapp.exec()
         ok = not win.grab().isNull()
         ctl.shutdown()
+        _teardown(qapp, win, wizard)
         log.info("Smoke test %s", "passed" if ok else "failed")
         return 0 if ok else 1
 
@@ -87,5 +88,20 @@ def run_gui(minimized: bool = False, force_setup: bool = False, home: str | None
     code = qapp.exec()
     hotkey.stop()
     ctl.shutdown()
+    _teardown(qapp, win)
     log.info("JARVIS GUI stopped")
     return code
+
+
+def _teardown(qapp: object, *widgets: object) -> None:
+    """Destroy windows while Qt is still fully alive (avoids crashes at interpreter exit)."""
+    from jarvis.gui.workers import wait_all
+
+    wait_all(5)
+    for w in widgets:
+        try:
+            w.hide()  # type: ignore[attr-defined]
+            w.deleteLater()  # type: ignore[attr-defined]
+        except RuntimeError:
+            pass
+    qapp.processEvents()  # type: ignore[attr-defined]

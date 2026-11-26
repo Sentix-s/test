@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-import threading
 
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider,
                                QVBoxLayout, QWidget)
 
 from jarvis.gui.controller import Controller
+from jarvis.gui.workers import run_bg
 from jarvis.settings.schema import IDLE_TIMEOUT_CHOICES
 from jarvis.voice.models import VOICE_CATALOG, ModelStore
 
@@ -168,7 +168,7 @@ class VoicePage(QWidget):
             except Exception as exc:  # noqa: BLE001
                 log.exception("Preview failed")
                 self._sig.message.emit(f"Не удалось воспроизвести: {exc}")
-        threading.Thread(target=work, name="voice-preview", daemon=True).start()
+        run_bg(work, "voice-preview")
 
     def apply(self) -> None:
         v = self.ctl.settings.voice

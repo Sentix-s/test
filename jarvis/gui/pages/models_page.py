@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QProgressBar,
@@ -11,6 +10,7 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget, QLis
 
 from jarvis.ai.ollama_client import OllamaClient
 from jarvis.gui.controller import Controller
+from jarvis.gui.workers import run_bg
 
 log = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ class ModelsPage(QWidget):
             except Exception as exc:  # noqa: BLE001
                 data["error"] = str(exc)
             self._sig.refreshed.emit(data)
-        threading.Thread(target=work, name="models-refresh", daemon=True).start()
+        run_bg(work, "models-refresh")
 
     def _on_refreshed(self, data: dict) -> None:
         a = self.ctl.settings.ai
@@ -143,7 +143,7 @@ class ModelsPage(QWidget):
             except Exception as exc:  # noqa: BLE001
                 self._sig.message.emit(f"Ошибка скачивания: {exc}")
             self.refresh()
-        threading.Thread(target=work, name="model-pull", daemon=True).start()
+        run_bg(work, "model-pull")
 
     def _on_progress(self, done: int, total: int) -> None:
         self.bar.setMaximum(1000)

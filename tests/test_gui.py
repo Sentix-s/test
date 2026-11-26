@@ -47,7 +47,10 @@ def window(qapp, settings, paths):
     win.quitting = True
     win.tray.hide()
     win.close()
-    ctl.shutdown()
+    ctl.shutdown()  # waits for background workers
+    win.compact.deleteLater()
+    win.deleteLater()
+    qapp.processEvents()
 
 
 def test_power_on_chat_and_power_off(qapp, window, fake_ollama):
@@ -147,3 +150,8 @@ def test_setup_wizard_pulls_model(qapp, settings, paths, fake_ollama):
     assert pump(qapp, lambda: 1 in wz.done_steps)
     assert wz.finish_btn.isEnabled() and "qwen3:8b" in fake_ollama.models
     assert not needs_setup(check_environment(settings))
+    from jarvis.gui.workers import wait_all
+
+    assert wait_all(10)
+    wz.deleteLater()
+    qapp.processEvents()

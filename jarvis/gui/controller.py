@@ -61,15 +61,9 @@ class Controller(QObject):
 
     # ------------------------------------------------------------ helpers
     def _bg(self, target: Any, name: str) -> threading.Thread:
-        def run() -> None:
-            try:
-                target()
-            except Exception as exc:  # noqa: BLE001 - surface every background failure in the GUI
-                log.exception("%s failed", name)
-                self.error.emit(str(exc))
-        t = threading.Thread(target=run, name=name, daemon=True)
-        t.start()
-        return t
+        from jarvis.gui.workers import run_bg
+
+        return run_bg(target, name, on_error=lambda exc: self.error.emit(str(exc)))
 
     def _confirm(self, req: ConfirmRequest) -> bool:
         ticket = ConfirmTicket(req)
@@ -125,8 +119,12 @@ class Controller(QObject):
             self.power_on()
 
     def shutdown(self) -> None:
-        """Application exit: stop everything synchronously."""
+        """Application exit: stop everything synchronously, then wait for background workers."""
+        from jarvis.gui.workers import wait_all
+
+        self.app.cancel_current_task("exit")
         self._stop_voice()
+        wait_all(10)
         self.app.close()
 
     # ------------------------------------------------------------- voice

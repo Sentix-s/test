@@ -91,6 +91,10 @@ def _download(url: str, dest: Path, label: str, progress: Progress | None, timeo
 class ModelStore:
     def __init__(self, root: Path) -> None:
         self.root = root
+        # CUDA DLLs downloaded by the installed app live next to the models (<data_dir>/cuda).
+        from jarvis.voice.stt import set_cuda_dir
+
+        set_cuda_dir(root.parent / "cuda")
         self.voices_dir = root / "voices"
         self.wakeword_dir = root / "wakeword"
         self.whisper_dir = root / "whisper"
