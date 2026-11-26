@@ -43,7 +43,7 @@ def test_custom_wake_word():
 
 
 @pytest.mark.parametrize("text,expected", [
-    ("Всё, спасибо!", True), ("все спасибо", True), ("Всё, спасибо большое", True), ("Отбой.", True),
+    ("Всё, спасибо!", True), ("все спасибо", True), ("Всего раз спасибо.", True), ("Всё, спасибо большое", True), ("Отбой.", True),
     ("Всё, спасибо, а теперь открой ворд и напиши письмо", False), ("Спасибо, открой браузер", False),
 ])
 def test_stop_phrases(text, expected):

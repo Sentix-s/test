@@ -114,6 +114,10 @@ def is_stop_phrase(text: str, stop_phrases: list[str]) -> bool:
     n = normalize(text)
     if not n:
         return False
+    words = n.split()
+    # ASR often garbles the short "Всё, спасибо" ("всего раз спасибо", "все спасибо вам").
+    if len(words) <= 3 and words[0].startswith("вс") and "спасибо" in words[1:]:
+        return True
     for phrase in stop_phrases:
         p = normalize(phrase)
         if n == p or (n.startswith(p) and len(n) - len(p) <= 12):
