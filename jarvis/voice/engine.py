@@ -109,8 +109,9 @@ class VoiceEngine:
         self.tts = PiperTTS(self.store, s.tts_voice, s.tts_voice_en, s.tts_speed, s.tts_volume)
         self.tts.preload()
         say("Загрузка распознавания речи…")
-        self.stt = WhisperSTT(self.store, s.stt_model, s.stt_device, s.stt_language, progress=say,
-                              hotwords=s.wake_words)
+        # No Whisper hotwords for the wake word: on real Whisper they made it drop the name entirely
+        # ("Джарвис, который час" -> "который час"); phonetic matching handles misspellings instead.
+        self.stt = WhisperSTT(self.store, s.stt_model, s.stt_device, s.stt_language, progress=say)
         self.stt.load()
         if s.wake_engine == "openwakeword":
             say("Загрузка детектора ключевого слова…")

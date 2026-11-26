@@ -125,6 +125,10 @@ class Controller(QObject):
         self.app.cancel_current_task("exit")
         self._stop_voice()
         wait_all(10)
+        # Deliver signals the workers queued (they may read the database) before closing it.
+        from PySide6.QtCore import QCoreApplication
+
+        QCoreApplication.processEvents()
         self.app.close()
 
     # ------------------------------------------------------------- voice

@@ -61,7 +61,8 @@ def test_power_on_chat_and_power_off(qapp, window, fake_ollama):
     fake_ollama.turns = [tool_turn("calculate", {"expression": "6*7"}), text_turn("Сорок ", "два, сэр.")]
     window.main_page.input.setText("6*7?")
     window.main_page._send()
-    assert pump(qapp, lambda: "Сорок два, сэр." in window.main_page.chat.bubble_texts())
+    assert pump(qapp, lambda: "Сорок два, сэр." in window.main_page.chat.bubble_texts()
+                and "6*7?" in window.main_page.history.currentText())
     texts = window.main_page.chat.bubble_texts()
     assert texts[0] == "6*7?" and any("calculate" in t for t in texts)
     assert window.main_page.history.count() >= 1 and "6*7?" in window.main_page.history.currentText()
