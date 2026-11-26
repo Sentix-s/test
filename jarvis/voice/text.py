@@ -46,8 +46,8 @@ _TRANSLIT = {"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "
 def phonetic(text: str) -> str:
     """Rough sound-alike key, the same for "Джарвис", "Жарвис", "Чарвис", "Jarvis", "Джервис"."""
     t = "".join(_TRANSLIT.get(ch, ch) for ch in normalize(text)).replace(" ", "")
-    for a, b in (("dzh", "j"), ("dj", "j"), ("zh", "j"), ("ch", "j"), ("y", "i"), ("w", "v"), ("z", "s"),
-                 ("e", "a"), ("o", "a")):
+    for a, b in (("dzh", "j"), ("dj", "j"), ("zh", "j"), ("ch", "j"), ("ts", "s"), ("y", "i"), ("w", "v"),
+                 ("z", "s"), ("e", "a"), ("o", "a")):
         t = t.replace(a, b)
     out: list[str] = []
     for ch in t:  # collapse doubled letters
@@ -56,11 +56,23 @@ def phonetic(text: str) -> str:
     return "".join(out)
 
 
+def consonants(key: str) -> str:
+    """Consonant skeleton of a phonetic key: vowels are what ASR gets wrong most ("жарвец" ~ "jarvis")."""
+    return key[:1] + "".join(ch for ch in key[1:] if ch not in "aeiou")
+
+
 @dataclass(frozen=True)
 class WakeMatch:
     word: str          # which wake word matched
     remainder: str     # text spoken after the wake word (may be a command)
     score: float
+
+
+def _skeleton_score(a: str, b: str) -> float:
+    ca, cb = consonants(a), consonants(b)
+    if len(ca) < 4 or len(cb) < 4 or ca[0] != cb[0]:
+        return 0.0
+    return difflib.SequenceMatcher(None, ca, cb).ratio()
 
 
 def find_wake_word(text: str, wake_words: list[str], threshold: float = 0.8) -> WakeMatch | None:
@@ -84,7 +96,8 @@ def find_wake_word(text: str, wake_words: list[str], threshold: float = 0.8) -> 
             for cand in candidates:
                 score = max(difflib.SequenceMatcher(None, chunk, cand).ratio(),
                             difflib.SequenceMatcher(None, joined, cand.replace(" ", "")).ratio(),
-                            difflib.SequenceMatcher(None, ph, phonetic(cand)).ratio() if len(ph) >= 4 else 0.0)
+                            difflib.SequenceMatcher(None, ph, phonetic(cand)).ratio() if len(ph) >= 4 else 0.0,
+                            _skeleton_score(ph, phonetic(cand)))
                 if score >= threshold and (best is None or score > best.score):
                     best = WakeMatch(cand, " ".join(tokens[i + size:]), score)
     if best is None:

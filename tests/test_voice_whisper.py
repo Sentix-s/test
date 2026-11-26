@@ -16,7 +16,8 @@ VOICE = os.environ.get("JARVIS_TEST_VOICE", "ru_RU-dmitri-medium")
 def stt():
     from jarvis.voice.stt import WhisperSTT
 
-    s = WhisperSTT(model_store(), model=os.environ.get("JARVIS_TEST_STT", "small"), device="cpu", language="ru")
+    s = WhisperSTT(model_store(), model=os.environ.get("JARVIS_TEST_STT", "small"), device="cpu", language="ru",
+                   hotwords=["джарвис", "jarvis"])
     s.load()
     return s
 

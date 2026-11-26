@@ -22,7 +22,7 @@ def test_wake_word_found(text, remainder):
 
 
 @pytest.mark.parametrize("text", ["Чарвис, привет", "Джервис, привет", "Jarvis привет", "Жарвиз, привет",
-                                  "Дарвин, привет"])
+                                  "Жарвец, привет", "Дарвин, привет"])
 def test_wake_word_sound_alikes(text):
     m = find_wake_word(text, WAKE)
     if text.startswith("Дарвин"):

@@ -109,7 +109,8 @@ class VoiceEngine:
         self.tts = PiperTTS(self.store, s.tts_voice, s.tts_voice_en, s.tts_speed, s.tts_volume)
         self.tts.preload()
         say("Загрузка распознавания речи…")
-        self.stt = WhisperSTT(self.store, s.stt_model, s.stt_device, s.stt_language, progress=say)
+        self.stt = WhisperSTT(self.store, s.stt_model, s.stt_device, s.stt_language, progress=say,
+                              hotwords=s.wake_words)
         self.stt.load()
         if s.wake_engine == "openwakeword":
             say("Загрузка детектора ключевого слова…")

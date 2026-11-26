@@ -95,7 +95,8 @@ def resolve_device(device: str, model: str) -> tuple[str, str, str]:
 
 class WhisperSTT:
     def __init__(self, store: ModelStore, model: str = "auto", device: str = "auto", language: str = "ru",
-                 beam_size: int = 1, cpu_threads: int = 4, progress: Callable[[str], None] | None = None) -> None:
+                 beam_size: int = 1, cpu_threads: int = 4, progress: Callable[[str], None] | None = None,
+                 hotwords: list[str] | None = None) -> None:
         self.store = store
         self.requested_model = model
         self.requested_device = device
@@ -103,6 +104,8 @@ class WhisperSTT:
         self.beam_size = beam_size
         self.cpu_threads = cpu_threads
         self.progress = progress
+        # Names Whisper does not know ("Джарвис") are spelled right when given as hotwords.
+        self.hotwords = ", ".join(w.capitalize() for w in hotwords) if hotwords else None
         self.device = ""
         self.model_name = ""
         self._model: Any = None
@@ -150,7 +153,7 @@ class WhisperSTT:
             data = data[: int(16000 * max_seconds)]
         segments, _info = self._model.transcribe(
             data, language=language or self.language, beam_size=self.beam_size, vad_filter=False,
-            condition_on_previous_text=False, without_timestamps=True,
+            condition_on_previous_text=False, without_timestamps=True, hotwords=self.hotwords,
         )
         return " ".join(s.text.strip() for s in segments).strip()
 
