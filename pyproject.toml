@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis-assistant"
-version = "0.1.0"
+version = "0.2.0"
 description = "JARVIS — personal local AI assistant for Windows (local LLM via Ollama)"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -23,7 +23,12 @@ dependencies = [
     "webrtcvad-wheels>=2.0.14",
     "faster-whisper>=1.1",
     "piper-tts>=1.3",
-    "openwakeword>=0.6",
+    # openWakeWord needs tflite-runtime on Linux, which has no Python 3.12 build (Windows uses ONNX).
+    "openwakeword>=0.6; sys_platform == 'win32' or python_version < '3.12'",
+    # GUI. PySide6 6.12.0 corrupts the refcount of None on Python 3.11 (interpreter abort),
+    # so 3.11 stays below it; Python 3.12 is unaffected.
+    "PySide6-Essentials>=6.8,<6.12; python_version < '3.12'",
+    "PySide6-Essentials>=6.8; python_version >= '3.12'",
 ]
 
 [project.optional-dependencies]

@@ -21,7 +21,18 @@ def test_wake_word_found(text, remainder):
     assert m is not None and m.remainder == remainder
 
 
-@pytest.mark.parametrize("text", ["я вчера смотрел про джарвиса фильм", "Привет, как дела", "", "Чарльз"])
+@pytest.mark.parametrize("text", ["Чарвис, привет", "Джервис, привет", "Jarvis привет", "Жарвиз, привет",
+                                  "Дарвин, привет"])
+def test_wake_word_sound_alikes(text):
+    m = find_wake_word(text, WAKE)
+    if text.startswith("Дарвин"):
+        assert m is None  # a different name must not wake
+    else:
+        assert m is not None and m.remainder == "привет"
+
+
+@pytest.mark.parametrize("text", ["я вчера смотрел про джарвиса фильм", "Привет, как дела", "", "Чарльз",
+                                  "Давай поиграем", "Жара невыносимая", "Чарли, иди сюда"])
 def test_wake_word_not_found(text):
     assert find_wake_word(text, WAKE) is None
 

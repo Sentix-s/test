@@ -8,3 +8,6 @@ dist/
 /data/
 *.log
 tests/.models/
+packaging/dist/
+packaging/build/
+dist-installer/

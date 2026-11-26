@@ -33,9 +33,13 @@ def test_wake_word_with_command(stt):
 
     store = require_voice(VOICE)
     det = TranscriptWakeDetector(stt, ["джарвис", "jarvis"])
-    m = det.check(synth16k(store, VOICE, "Джарвис, который сейчас час?"))
-    assert m is not None and "час" in m.remainder.lower(), m
-    assert det.check(synth16k(store, VOICE, "Сегодня хорошая погода, пойдём гулять.")) is None
+    audio = synth16k(store, VOICE, "Джарвис, который сейчас час?")
+    heard = stt.transcribe(audio)
+    print("whisper heard:", repr(heard))
+    m = det.check(audio)
+    assert m is not None and "час" in m.remainder.lower(), f"whisper heard {heard!r}"
+    other = synth16k(store, VOICE, "Сегодня хорошая погода, пойдём гулять.")
+    assert det.check(other) is None, stt.transcribe(other)
 
 
 def test_stop_phrase_recognised(stt):

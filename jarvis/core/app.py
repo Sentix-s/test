@@ -90,7 +90,15 @@ class JarvisApp:
         self._set_state(AppState.STARTING)
         try:
             say("Проверка Ollama…")
-            version = self.llm.version()
+            try:
+                version = self.llm.version()
+            except LLMUnavailableError:
+                from jarvis.core.ollama_setup import start_ollama
+
+                say("Запуск Ollama…")
+                if not start_ollama(self.settings.ai.host):
+                    raise
+                version = self.llm.version()
             say(f"Ollama {version}. Выбор модели…")
             self.model = self.resolve_model()
             if warmup:

@@ -75,7 +75,8 @@ class PiperSpeaker:
 
 
 class VoiceEngine:
-    def __init__(self, app: JarvisApp, paths: AppPaths, listener: Callable[[str, dict[str, Any]], None] | None = None) -> None:
+    def __init__(self, app: JarvisApp, paths: AppPaths, listener: Callable[[str, dict[str, Any]], None] | None = None,
+                 conversation: Callable[[], int] | None = None) -> None:
         self.app = app
         self.settings: VoiceSettings = app.settings.voice
         self.store = ModelStore(paths.data_dir / "models")
@@ -91,6 +92,7 @@ class VoiceEngine:
         self._commands: queue.Queue[Callable[[], None]] = queue.Queue()
         self._conversation_id: int | None = None
         self._last_activity = 0.0
+        self._conversation_provider = conversation  # GUI: share the visible conversation
 
     # ------------------------------------------------------------ building
     def load(self, progress: Callable[[str], None] | None = None) -> None:
@@ -123,6 +125,8 @@ class VoiceEngine:
 
     # ------------------------------------------------------------- agent glue
     def _conversation(self) -> int:
+        if self._conversation_provider is not None:
+            return self._conversation_provider()
         now = time.monotonic()
         if self._conversation_id is None or now - self._last_activity > CONVERSATION_REUSE_S:
             self._conversation_id = self.app.conversations.create("🎙")

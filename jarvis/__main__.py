@@ -39,6 +39,10 @@ def _build_parser() -> argparse.ArgumentParser:
     setup = sub.add_parser("setup", help="скачать модель в Ollama")
     setup.add_argument("--model", dest="setup_model", help="какую модель скачать")
     sub.add_parser("config", help="показать пути и действующие настройки")
+    gui = sub.add_parser("gui", help="графическое приложение (по умолчанию для JARVIS.exe)")
+    gui.add_argument("--minimized", action="store_true", help="запустить свёрнутым в трей")
+    gui.add_argument("--setup", action="store_true", help="открыть мастер настройки")
+    gui.add_argument("--smoke", action="store_true", help=argparse.SUPPRESS)  # build check: open window, exit
     from jarvis.cli.voice_cmd import add_voice_parsers
 
     add_voice_parsers(sub)
@@ -84,7 +88,13 @@ def _main(argv: list[str] | None = None) -> int:
         return 2
     log_file = setup_logging(settings.logging, paths.log_dir, console=args.debug)
     log.info("JARVIS %s starting, command=%s", __version__, args.command or "chat")
-    command = args.command or "chat"
+    # The installed JARVIS.exe opens the window; `python -m jarvis` keeps the text chat.
+    command = args.command or ("gui" if getattr(sys, "frozen", False) else "chat")
+
+    if command == "gui":
+        from jarvis.gui.app import run_gui
+        return run_gui(minimized=getattr(args, "minimized", False), force_setup=getattr(args, "setup", False),
+                       smoke=getattr(args, "smoke", False))
 
     if command == "config":
         import yaml

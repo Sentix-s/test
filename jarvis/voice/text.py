@@ -20,7 +20,7 @@ def normalize(text: str) -> str:
 
 # Common ways speech recognition spells "Jarvis" (Russian and English).
 WAKE_VARIANTS: dict[str, list[str]] = {
-    "jarvis": ["jarvis", "джарвис", "джарвиз", "джервис", "жарвис", "дарвис", "jervis", "jarvys", "javis", "джаввис"],
+    "jarvis": ["jarvis", "джарвис", "джарвиз", "джервис", "жарвис", "jervis", "jarvys", "javis", "джаввис"],
 }
 
 
@@ -35,6 +35,25 @@ def expand_wake_words(words: list[str]) -> list[str]:
             if n == key or n in variants:
                 out.extend(variants)
     return list(dict.fromkeys(out))
+
+
+_TRANSLIT = {"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh", "з": "z", "и": "i",
+             "й": "i", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+             "у": "u", "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sh", "ъ": "", "ы": "i", "ь": "",
+             "э": "e", "ю": "yu", "я": "ya"}
+
+
+def phonetic(text: str) -> str:
+    """Rough sound-alike key, the same for "Джарвис", "Жарвис", "Чарвис", "Jarvis", "Джервис"."""
+    t = "".join(_TRANSLIT.get(ch, ch) for ch in normalize(text)).replace(" ", "")
+    for a, b in (("dzh", "j"), ("dj", "j"), ("zh", "j"), ("ch", "j"), ("y", "i"), ("w", "v"), ("z", "s"),
+                 ("e", "a"), ("o", "a")):
+        t = t.replace(a, b)
+    out: list[str] = []
+    for ch in t:  # collapse doubled letters
+        if not out or out[-1] != ch:
+            out.append(ch)
+    return "".join(out)
 
 
 @dataclass(frozen=True)
@@ -61,9 +80,11 @@ def find_wake_word(text: str, wake_words: list[str], threshold: float = 0.8) -> 
                 continue
             chunk = " ".join(tokens[i:i + size])
             joined = chunk.replace(" ", "")
+            ph = phonetic(chunk)
             for cand in candidates:
                 score = max(difflib.SequenceMatcher(None, chunk, cand).ratio(),
-                            difflib.SequenceMatcher(None, joined, cand.replace(" ", "")).ratio())
+                            difflib.SequenceMatcher(None, joined, cand.replace(" ", "")).ratio(),
+                            difflib.SequenceMatcher(None, ph, phonetic(cand)).ratio() if len(ph) >= 4 else 0.0)
                 if score >= threshold and (best is None or score > best.score):
                     best = WakeMatch(cand, " ".join(tokens[i + size:]), score)
     if best is None:

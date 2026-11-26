@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: write   # publish the installer to the "jarvis-latest" pre-release
+
 on:
   push:
   pull_request:
@@ -22,6 +25,9 @@ jobs:
         with:
           path: tests/.models
           key: test-models-v1
+      - name: Qt system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q
         env:
@@ -94,3 +100,68 @@ jobs:
         run: |
           Get-Content "$env:LOCALAPPDATA\JARVIS\logs\install.log" -ErrorAction SilentlyContinue | Select-Object -Last 80
           Get-Content "$env:LOCALAPPDATA\JARVIS\logs\jarvis.log" -ErrorAction SilentlyContinue | Select-Object -Last 80
+
+  # Windows installer: PyInstaller app -> self-check -> Inno Setup -> silent install test -> Releases.
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build app
+        shell: pwsh
+        run: |
+          python -m pip install -e . pyinstaller
+          cd packaging
+          pyinstaller jarvis.spec --noconfirm
+      - name: Check the built app
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $app = "packaging\dist\JARVIS"
+          & "$app\jarvis-cli.exe" --version
+          & "$app\jarvis-cli.exe" --home "$env:RUNNER_TEMP\fh" say "Проверка установленной версии." --out "$env:RUNNER_TEMP\f.wav"
+          if ($LASTEXITCODE -ne 0) { throw "say failed" }
+          $p = Start-Process "$app\JARVIS.exe" -ArgumentList "--home","$env:RUNNER_TEMP\fh","gui","--smoke" -PassThru -Wait
+          Get-Content "$env:RUNNER_TEMP\fh\logs\jarvis.log" -Tail 5
+          if ($p.ExitCode -ne 0) { throw "GUI smoke test failed: $($p.ExitCode)" }
+      - name: Build installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $ver = python -c "import jarvis; print(jarvis.__version__)"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" packaging\jarvis.iss
+          if ($LASTEXITCODE -ne 0) { throw "iscc failed" }
+          Get-ChildItem dist-installer
+      - name: Silent install, run, uninstall
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $setup = (Get-ChildItem dist-installer\JARVIS-Setup-*.exe)[0].FullName
+          $p = Start-Process $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "setup failed: $($p.ExitCode)" }
+          $dir = "$env:LOCALAPPDATA\Programs\JARVIS"
+          & "$dir\jarvis-cli.exe" --version
+          $g = Start-Process "$dir\JARVIS.exe" -ArgumentList "gui","--smoke" -PassThru -Wait
+          if ($g.ExitCode -ne 0) { throw "installed GUI failed" }
+          $u = Start-Process "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES" -PassThru -Wait
+          Start-Sleep 3
+          if (Test-Path "$dir\JARVIS.exe") { throw "uninstall left files" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-Setup
+          path: dist-installer/*.exe
+      - name: Publish to Releases (jarvis-latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: jarvis-latest
+          name: JARVIS (последняя сборка)
+          prerelease: true
+          files: dist-installer/*.exe
+          body: |
+            Установщик JARVIS для Windows 10/11 (x64). Скачайте JARVIS-Setup-*.exe, запустите и следуйте мастеру.
+            При первом запуске JARVIS сам предложит установить Ollama и скачать модели.

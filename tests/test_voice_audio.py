@@ -48,7 +48,8 @@ def test_english_sentences_use_english_voice():
     tts = PiperTTS(store, RU, voice_en=EN, auto_download=False)
     assert tts.voice_for("My hobbies are football and chess.") == EN
     assert tts.voice_for("Мои хобби — футбол.") == RU
-    assert tts.synthesize("My hobbies are football and chess.").sample_rate == 16000  # lessac model rate
+    sp = tts.synthesize("My hobbies are football and chess.")
+    assert sp is not None and sp.sample_rate in (16000, 22050)  # the GitHub and HF builds of lessac differ
 
 
 def test_vad_segments_real_speech():
@@ -85,6 +86,7 @@ def test_vad_max_length_cut():
 
 
 def test_openwakeword_hey_jarvis():
+    pytest.importorskip("openwakeword")
     from jarvis.voice.wakeword import OpenWakeWordDetector
 
     store = require_voice(EN)

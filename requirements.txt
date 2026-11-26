@@ -12,4 +12,7 @@ sounddevice>=0.4.6
 webrtcvad-wheels>=2.0.14
 faster-whisper>=1.1
 piper-tts>=1.3
-openwakeword>=0.6
+openwakeword>=0.6; sys_platform == "win32" or python_version < "3.12"
+# GUI (PySide6 6.12.0 crashes on Python 3.11, see pyproject.toml)
+PySide6-Essentials>=6.8,<6.12; python_version < "3.12"
+PySide6-Essentials>=6.8; python_version >= "3.12"
