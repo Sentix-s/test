@@ -26,9 +26,20 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
+# Everything the installer prints is also saved, so a failure can be diagnosed later.
+$LogDir = Join-Path $env:LOCALAPPDATA "JARVIS\logs"
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+try { Start-Transcript -Path (Join-Path $LogDir "install.log") -Force | Out-Null } catch { }
+$Marker = Join-Path $Root ".venv\.jarvis-installed"
+
 function Info($m) { Write-Host "[JARVIS] $m" -ForegroundColor Cyan }
 function Warn($m) { Write-Host "[JARVIS] $m" -ForegroundColor Yellow }
-function Fail($m) { Write-Host "[JARVIS] $m" -ForegroundColor Red; exit 1 }
+function Fail($m) {
+    Write-Host "[JARVIS] $m" -ForegroundColor Red
+    Write-Host "[JARVIS] Install log: $LogDir\install.log" -ForegroundColor Red
+    try { Stop-Transcript | Out-Null } catch { }
+    exit 1
+}
 
 function Confirm-Step($question) {
     if ($Yes) { return $true }
@@ -104,5 +115,9 @@ if (-not $SkipModel) {
 }
 
 # ---------------------------------------------------------------- check
+# The doctor only reports; warnings (e.g. no GPU) must not abort the install.
 & $venvPy -m jarvis doctor
-Info "Done. Start JARVIS with:  jarvis.bat"
+Set-Content -Path $Marker -Value (Get-Date -Format o)
+Info "Installation complete."
+try { Stop-Transcript | Out-Null } catch { }
+exit 0

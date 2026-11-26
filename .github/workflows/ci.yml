@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+  # Real end-to-end run on a clean Windows machine: installer, Ollama, a small
+  # real Qwen model on CPU, and a question through the launcher.
+  windows-e2e:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      JARVIS_NO_PAUSE: "1"
+      JARVIS_INSTALL_ARGS: "-Yes -Model qwen2.5:0.5b"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ollama
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://ollama.com/download/OllamaSetup.exe -OutFile OllamaSetup.exe
+          Start-Process .\OllamaSetup.exe -ArgumentList '/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES' -Wait
+          "$env:LOCALAPPDATA\Programs\Ollama" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: First launch (runs install.ps1) and one question
+        shell: cmd
+        run: |
+          jarvis.bat --model qwen2.5:0.5b ask "Сколько будет 17*23? Ответь одним числом."
+      - name: Second launch (already installed) + doctor
+        shell: cmd
+        run: |
+          jarvis.bat --model qwen2.5:0.5b ask "Скажи привет"
+          jarvis.bat --model qwen2.5:0.5b doctor || exit /b 0
+      - name: Logs
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Content "$env:LOCALAPPDATA\JARVIS\logs\install.log" -ErrorAction SilentlyContinue | Select-Object -Last 80
+          Get-Content "$env:LOCALAPPDATA\JARVIS\logs\jarvis.log" -ErrorAction SilentlyContinue | Select-Object -Last 80

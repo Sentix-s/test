@@ -43,6 +43,17 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except KeyboardInterrupt:
+        return 130
+    except Exception as exc:  # noqa: BLE001 - last resort: log the traceback, never vanish silently
+        logging.getLogger("jarvis").exception("Fatal error")
+        print(f"\n[JARVIS] Критическая ошибка: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+
+def _main(argv: list[str] | None = None) -> int:
     _configure_console()
     args = _build_parser().parse_args(argv)
     if args.home:
