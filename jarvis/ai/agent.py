@@ -153,7 +153,10 @@ class Agent:
         history = self.build_context(conversation_id)
         self._persist(conversation_id, Message("user", user_text), history)
         if len(self.conversations.messages(conversation_id, limit=2)) == 1:
-            self.conversations.set_title(conversation_id, user_text.strip().splitlines()[0][:80])
+            # Title = first request; a short marker given at creation (e.g. "🎙" for voice) is kept as prefix.
+            marker = self.conversations.get_title(conversation_id)
+            first_line = user_text.strip().splitlines()[0][:80]
+            self.conversations.set_title(conversation_id, f"{marker} {first_line}" if marker else first_line)
 
         tools = self.registry.schemas(exclude=set(self.permissions.settings.blocked_tools)) or None
         try:

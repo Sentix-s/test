@@ -82,3 +82,17 @@ def test_parse_text_tool_calls():
     assert calls[0].name == "calculate" and calls[0].arguments == {"expression": "1+1"}
     assert strip_markup(text) == "Сейчас."
     assert parse_text_tool_calls("<tool_call>{broken</tool_call>") == []
+
+
+def test_connect_timeout_means_unavailable():
+    """Windows: a closed localhost port times out instead of refusing."""
+    import httpx
+
+    def handler(request):
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    c = OllamaClient("http://127.0.0.1:11434", transport=httpx.MockTransport(handler))
+    with pytest.raises(LLMUnavailableError):
+        c.version()
+    with pytest.raises(LLMUnavailableError):
+        list(c.chat_stream("m", [Message("user", "hi")]))

@@ -39,6 +39,9 @@ def _build_parser() -> argparse.ArgumentParser:
     setup = sub.add_parser("setup", help="скачать модель в Ollama")
     setup.add_argument("--model", dest="setup_model", help="какую модель скачать")
     sub.add_parser("config", help="показать пути и действующие настройки")
+    from jarvis.cli.voice_cmd import add_voice_parsers
+
+    add_voice_parsers(sub)
     return p
 
 
@@ -93,6 +96,18 @@ def _main(argv: list[str] | None = None) -> int:
         from jarvis.cli.doctor import print_checks, run_checks
         return 0 if print_checks(run_checks(settings, paths), console) else 1
 
+    if command in ("voices", "say", "devices", "transcribe"):
+        from jarvis.cli import voice_cmd
+
+        handler = {"voices": voice_cmd.cmd_voices, "say": voice_cmd.cmd_say, "devices": voice_cmd.cmd_devices,
+                   "transcribe": voice_cmd.cmd_transcribe}[command]
+        try:
+            return handler(args, settings, paths, console)
+        except (OSError, ValueError) as exc:
+            log.exception("%s failed", command)
+            console.print(f"[red]{exc}[/red]")
+            return 1
+
     if command == "setup":
         from rich.progress import BarColumn, DownloadColumn, Progress, TransferSpeedColumn
 
@@ -140,6 +155,9 @@ def _main(argv: list[str] | None = None) -> int:
             if args.yes:
                 app.permissions.set_confirm_callback(lambda _req: True)
             session.send(" ".join(args.text))
+        elif command == "voice":
+            from jarvis.cli.voice_cmd import cmd_voice_mode
+            return cmd_voice_mode(app, paths, console)
         else:
             cid = app.conversations.latest_id() if args.resume else None
             ChatSession(app, console, cid).loop()

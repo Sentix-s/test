@@ -29,6 +29,10 @@ class ConversationStore:
     def exists(self, conversation_id: int) -> bool:
         return bool(self.db.query("SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)))
 
+    def get_title(self, conversation_id: int) -> str:
+        rows = self.db.query("SELECT title FROM conversations WHERE id = ?", (conversation_id,))
+        return str(rows[0]["title"]) if rows else ""
+
     def set_title(self, conversation_id: int, title: str) -> None:
         self.db.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
 

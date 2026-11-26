@@ -18,10 +18,44 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - uses: actions/cache@v4
+        with:
+          path: tests/.models
+          key: test-models-v1
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q
         env:
           QT_QPA_PLATFORM: offscreen
+
+  # Voice on a clean Windows machine with real models from HuggingFace:
+  # every catalog voice URL, Piper synthesis, Whisper recognition, wake word.
+  windows-voice:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: tests/.models
+          key: voice-models-v1
+      - run: python -m pip install -e ".[dev]"
+      - name: All catalog voices exist
+        run: |
+          python -c "import httpx; from jarvis.voice.models import VOICE_CATALOG, PIPER_REPO, PIPER_REV; bad=[v.id for v in VOICE_CATALOG for ext in ('', '.json') if httpx.head(f'https://huggingface.co/{PIPER_REPO}/resolve/{PIPER_REV}/{v.hf_path}{ext}', follow_redirects=True, timeout=30).status_code != 200]; print('missing:', bad); assert not bad"
+      - name: Choose a voice and synthesize (CLI)
+        shell: pwsh
+        run: |
+          python -m jarvis --home "$env:RUNNER_TEMP\jh" voices --set 2
+          python -m jarvis --home "$env:RUNNER_TEMP\jh" say "Здравствуйте, меня зовут Джарвис. Сегодня отличная погода." --out "$env:RUNNER_TEMP\t.wav"
+          python -m jarvis --home "$env:RUNNER_TEMP\jh" transcribe "$env:RUNNER_TEMP\t.wav" | Tee-Object -Variable out
+          if (-not ("$out" -match "погода")) { throw "transcription mismatch: $out" }
+      - name: Whisper tests
+        run: python -m pytest -q tests/test_voice_whisper.py tests/test_voice_audio.py -v
+        env:
+          JARVIS_TEST_WHISPER: "1"
 
   # Real end-to-end run on a clean Windows machine: installer, Ollama, a small
   # real Qwen model on CPU, and a question through the launcher.

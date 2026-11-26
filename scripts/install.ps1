@@ -79,7 +79,12 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) {
 $venvPy = Join-Path $Root ".venv\Scripts\python.exe"
 Info "Installing dependencies"
 & $venvPy -m pip install --upgrade pip --quiet
-& $venvPy -m pip install -e ".[dev]" --quiet
+$extras = "dev"
+if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+    Info "NVIDIA GPU found: installing CUDA libraries for speech recognition (~1 GB, once)"
+    $extras = "dev,gpu"
+}
+& $venvPy -m pip install -e ".[$extras]" --quiet
 if ($LASTEXITCODE -ne 0) { Fail "pip install failed" }
 
 # ---------------------------------------------------------------- Ollama

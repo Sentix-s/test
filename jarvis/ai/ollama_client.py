@@ -58,13 +58,15 @@ class OllamaClient:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
+    def _unavailable_msg(self) -> str:
+        return f"Ollama не отвечает по адресу {self.host}. Запустите Ollama (значок в трее или `ollama serve`)."
+
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         try:
             resp = self._http.request(method, path, **kwargs)
-        except httpx.ConnectError as exc:
-            raise LLMUnavailableError(
-                f"Ollama не отвечает по адресу {self.host}. Запустите Ollama (значок в трее или `ollama serve`)."
-            ) from exc
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            # On Windows a closed localhost port times out instead of refusing: both mean "not running".
+            raise LLMUnavailableError(self._unavailable_msg()) from exc
         except httpx.TimeoutException as exc:
             raise LLMError(f"Ollama: превышено время ожидания ({path})") from exc
         except httpx.HTTPError as exc:
@@ -131,8 +133,8 @@ class OllamaClient:
                         raise LLMError(f"Pull failed: {data['error']}")
                     if on_progress:
                         on_progress(data)
-        except httpx.ConnectError as exc:
-            raise LLMUnavailableError(f"Ollama не отвечает по адресу {self.host}") from exc
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise LLMUnavailableError(self._unavailable_msg()) from exc
 
     # ------------------------------------------------------------------ chat
     def chat_stream(
@@ -188,10 +190,8 @@ class OllamaClient:
                     yield chunk
                     if chunk.done:
                         return
-        except httpx.ConnectError as exc:
-            raise LLMUnavailableError(
-                f"Ollama не отвечает по адресу {self.host}. Запустите Ollama (значок в трее или `ollama serve`)."
-            ) from exc
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise LLMUnavailableError(self._unavailable_msg()) from exc
         except httpx.TimeoutException as exc:
             raise LLMError("Ollama: превышено время ожидания ответа модели") from exc
         except (httpx.ReadError, httpx.StreamClosed, httpx.RemoteProtocolError) as exc:

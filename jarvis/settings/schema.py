@@ -38,22 +38,50 @@ IDLE_TIMEOUT_CHOICES = (5, 10, 15, 20, 30, 60)
 
 
 class VoiceSettings(_Section):
-    """Used from Phase 2 on; defined now so the settings file is stable."""
-
     enabled: bool = True
-    wake_word: str = "jarvis"
+    # ---- wake word
+    # "whisper": any word(s) in any language, recognised from speech (default).
+    # "openwakeword": tiny neural detector, built-in model knows English "(hey) Jarvis" only.
+    wake_engine: Literal["whisper", "openwakeword"] = "whisper"
+    wake_words: list[str] = Field(default_factory=lambda: ["джарвис", "jarvis"])
+    openwakeword_model: str = "hey_jarvis"   # built-in name or path to a custom .onnx
+    wake_threshold: float = Field(0.5, gt=0.0, lt=1.0)
+    # ---- session
     idle_timeout_seconds: int = 15
     activation_phrase: str = "Слушаю вас"
-    farewell_phrase: str = "До связи."
-    stop_phrases: list[str] = Field(default_factory=lambda: ["всё, спасибо", "все, спасибо", "всё спасибо"])
+    farewell_phrase: str = "Обращайтесь, сэр."
+    farewell_on_timeout: bool = True
+    stop_phrases: list[str] = Field(default_factory=lambda: ["всё, спасибо", "все спасибо", "спасибо, всё",
+                                                            "отбой", "that's all, thanks"])
+    # ---- speech recognition (faster-whisper)
+    stt_model: str = "auto"      # auto = large-v3-turbo on GPU, small on CPU; or tiny/base/small/medium/...
+    stt_device: Literal["auto", "cuda", "cpu"] = "auto"
+    stt_language: str = "ru"     # "auto" to detect per phrase
+    # ---- speech synthesis (Piper)
+    tts_voice: str = "ru_RU-dmitri-medium"
+    tts_voice_en: str = "en_GB-alan-medium"   # used for English sentences; "" = always main voice
+    tts_speed: float = Field(1.0, ge=0.5, le=2.0)
+    tts_volume: float = Field(1.0, ge=0.1, le=2.0)
+    # ---- audio
     input_device: str | None = None
     output_device: str | None = None
+    vad_aggressiveness: int = Field(2, ge=0, le=3)
+    end_silence_ms: int = Field(700, ge=200, le=3000)
+    max_utterance_seconds: float = Field(30.0, ge=3, le=120)
 
     @field_validator("idle_timeout_seconds")
     @classmethod
     def _check_timeout(cls, v: int) -> int:
         if v not in IDLE_TIMEOUT_CHOICES:
             raise ValueError(f"idle_timeout_seconds must be one of {IDLE_TIMEOUT_CHOICES}")
+        return v
+
+    @field_validator("wake_words")
+    @classmethod
+    def _check_wake(cls, v: list[str]) -> list[str]:
+        v = [w.strip() for w in v if w.strip()]
+        if not v:
+            raise ValueError("at least one wake word is required")
         return v
 
 
