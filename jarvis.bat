@@ -8,7 +8,12 @@ if not exist ".venv\.jarvis-installed" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\install.ps1" %JARVIS_INSTALL_ARGS%
     if errorlevel 1 goto failed
 )
-".venv\Scripts\python.exe" -m jarvis %*
+rem No arguments: open the app window. Otherwise pass the command through (chat, voice, doctor, ...).
+if "%~1"=="" (
+    ".venv\Scripts\python.exe" -m jarvis gui
+) else (
+    ".venv\Scripts\python.exe" -m jarvis %*
+)
 if errorlevel 1 goto failed
 exit /b 0
 

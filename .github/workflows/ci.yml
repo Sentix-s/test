@@ -93,6 +93,7 @@ jobs:
         shell: cmd
         run: |
           jarvis.bat --model qwen2.5:0.5b ask "Скажи привет"
+          jarvis.bat --model qwen2.5:0.5b chat < NUL
           jarvis.bat --model qwen2.5:0.5b doctor || exit /b 0
       - name: Logs
         if: always()

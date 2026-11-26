@@ -71,9 +71,9 @@ winget install Ollama.Ollama
 ## Запуск из консоли
 
 ```bat
-jarvis.bat gui                :: приложение
+jarvis.bat                    :: приложение (окно)
 jarvis.bat voice              :: голосовой режим в консоли
-jarvis.bat                    :: текстовый чат
+jarvis.bat chat               :: текстовый чат в консоли
 jarvis.bat chat --continue    :: продолжить последний разговор
 jarvis.bat ask "сколько будет 2^32?"
 jarvis.bat doctor             :: диагностика: Python, GPU/VRAM, Ollama, модель, БД
