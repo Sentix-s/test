@@ -57,7 +57,7 @@ jobs:
           python -m jarvis --home "$env:RUNNER_TEMP\jh" voices --set 2
           python -m jarvis --home "$env:RUNNER_TEMP\jh" say "Здравствуйте, меня зовут Джарвис. Сегодня отличная погода." --out "$env:RUNNER_TEMP\t.wav"
           python -m jarvis --home "$env:RUNNER_TEMP\jh" transcribe "$env:RUNNER_TEMP\t.wav" | Tee-Object -Variable out
-          if (-not ("$out" -match "погода")) { throw "transcription mismatch: $out" }
+          if (-not ("$out" -match "погод")) { throw "transcription mismatch: $out" }
       - name: Whisper tests
         run: python -m pytest -q tests/test_voice_whisper.py tests/test_voice_audio.py -v
         env:
