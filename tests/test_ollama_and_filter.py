@@ -96,3 +96,23 @@ def test_connect_timeout_means_unavailable():
         c.version()
     with pytest.raises(LLMUnavailableError):
         list(c.chat_stream("m", [Message("user", "hi")]))
+
+
+def test_emoji_split_across_tokens(fake_ollama, tmp_path):
+    """Real bug from the user's PC: '🌱' split into two tokens -> 'surrogates not allowed'."""
+    from jarvis.ai.types import clean_text
+    from jarvis.memory import ConversationStore, Database
+
+    fake_ollama.turns = [text_turn("Сад ", "\ud83c", "\udf31", " — это красиво"), text_turn("ok")]
+    with OllamaClient(fake_ollama.url) as c:
+        pieces = [ch.content for ch in c.chat_stream("qwen3:8b", [Message("user", "x")])]
+        text = "".join(pieces)
+        assert text == "Сад 🌱 — это красиво"
+        for p in pieces:
+            p.encode("utf-8")  # every streamed piece is valid UTF-8
+        store = ConversationStore(Database(tmp_path / "db.sqlite"))
+        cid = store.create()
+        store.add_message(cid, Message("assistant", "lone \ud83c half"))  # must not raise
+        assert store.messages(cid)[0].content == "lone � half"
+        assert c.chat("qwen3:8b", [Message("user", "x"), Message("assistant", "a\ud83c")]).content == "ok"
+    assert clean_text("ok") == "ok" and clean_text("🌱") == "🌱"

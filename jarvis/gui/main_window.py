@@ -156,7 +156,9 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(idx)
         for i, b in enumerate(self.nav):
             b.setChecked(i == idx)
-        if idx == 2:
+        if idx == 1:
+            self.voice_page._refresh_gpu()
+        elif idx == 2:
             self.models_page.refresh()
         elif idx == 3:
             self.system_page.refresh()

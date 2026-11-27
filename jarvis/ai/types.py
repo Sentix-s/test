@@ -10,6 +10,18 @@ from typing import Any, Literal
 Role = Literal["system", "user", "assistant", "tool"]
 
 
+def clean_text(text: str) -> str:
+    """Join UTF-16 surrogate halves into real characters and replace lone ones.
+
+    Ollama streams tokens; an emoji split across two tokens arrives as two JSON
+    escapes ("\\ud83c", "\\udf31"). Python keeps them as two lone surrogates, which
+    cannot be encoded as UTF-8 (SQLite, HTTP) -> "surrogates not allowed".
+    """
+    if not any("\ud800" <= ch <= "\udfff" for ch in text):
+        return text
+    return text.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
+
+
 @dataclass
 class ToolCall:
     name: str
@@ -41,7 +53,7 @@ class Message:
     tool_name: str | None = None  # for role == "tool"
 
     def to_ollama(self) -> dict[str, Any]:
-        msg: dict[str, Any] = {"role": self.role, "content": self.content}
+        msg: dict[str, Any] = {"role": self.role, "content": clean_text(self.content)}
         if self.tool_calls:
             msg["tool_calls"] = [tc.to_ollama() for tc in self.tool_calls]
         if self.role == "tool" and self.tool_name:

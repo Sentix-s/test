@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from jarvis.ai.types import Message, ToolCall
+from jarvis.ai.types import Message, ToolCall, clean_text
 from jarvis.memory.database import Database
 
 
@@ -42,7 +42,7 @@ class ConversationStore:
         with self.db.transaction() as conn:
             cur = conn.execute(
                 "INSERT INTO messages(conversation_id, role, content, tool_calls, tool_name) VALUES (?,?,?,?,?)",
-                (conversation_id, message.role, message.content, calls, message.tool_name),
+                (conversation_id, message.role, clean_text(message.content), calls, message.tool_name),
             )
             conn.execute(
                 "UPDATE conversations SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",

@@ -116,6 +116,16 @@ class VoicePage(QWidget):
         form.addRow("Распознавание речи", self.stt_model)
         root.addLayout(form)
 
+        # ---- GPU acceleration for speech recognition
+        self.gpu_label = QLabel("")
+        self.gpu_label.setObjectName("dim")
+        self.gpu_label.setWordWrap(True)
+        self.gpu_btn = QPushButton("⚡ Ускорить распознавание на видеокарте NVIDIA (~1 ГБ, один раз)")
+        self.gpu_btn.clicked.connect(self._install_gpu)
+        form.addRow("Видеокарта", self.gpu_label)
+        form.addRow("", self.gpu_btn)
+        self._refresh_gpu()
+
         save = QPushButton("Сохранить и применить")
         save.setObjectName("primary")
         save.clicked.connect(self.apply)
@@ -148,6 +158,49 @@ class VoicePage(QWidget):
         idx = combo.findData(value)
         if idx >= 0:
             combo.setCurrentIndex(idx)
+
+    def _refresh_gpu(self) -> None:
+        from jarvis.voice import cuda_libs
+        from jarvis.voice.stt import _cuda_libs_present
+
+        voice = self.ctl.voice
+        stt = getattr(voice, "stt", None) if voice is not None else None
+        running = f"Сейчас: {stt.model_name} на {'видеокарте' if stt.device == 'cuda' else 'процессоре'}. " \
+            if stt is not None and stt.device else ""
+        if not cuda_libs.nvidia_gpu_present():
+            self.gpu_label.setText(running + "Видеокарта NVIDIA не найдена — распознавание работает на процессоре.")
+            self.gpu_btn.setVisible(False)
+        elif _cuda_libs_present():
+            self.gpu_label.setText(running + "Библиотеки CUDA установлены — используется видеокарта.")
+            self.gpu_btn.setVisible(False)
+        else:
+            self.gpu_label.setText(running + "Есть видеокарта NVIDIA, но нет библиотек CUDA для распознавания речи: "
+                                   "сейчас оно идёт на процессоре (медленнее и менее точно).")
+            self.gpu_btn.setVisible(True)
+
+    def _install_gpu(self) -> None:
+        from jarvis.voice import cuda_libs
+
+        self.gpu_btn.setEnabled(False)
+
+        def work() -> None:
+            try:
+                last = [0]
+
+                def progress(label: str, done: int, total: int) -> None:
+                    pct = int(done * 100 / max(total, 1))
+                    if pct != last[0]:
+                        last[0] = pct
+                        self._sig.message.emit(f"Скачивание {label}: {pct}% из {total / 2**20:.0f} МБ")
+                cuda_libs.download(self.ctl.paths.data_dir, progress)
+                self._sig.message.emit("Готово. Перезапускаю голос на видеокарте (скачается модель large-v3-turbo, ~1.6 ГБ)…")
+                import jarvis.voice.stt as stt_mod
+
+                stt_mod._dll_setup_done = False  # pick up the new DLL folder
+                self.ctl.restart_voice()
+            except Exception as exc:  # noqa: BLE001
+                self._sig.message.emit(f"Не удалось скачать библиотеки CUDA: {exc}")
+        run_bg(work, "cuda-download")
 
     def _preview(self, voice_id: str, text: str) -> None:
         speed, volume, device = self.speed.value() / 100, self.volume.value() / 100, self.out.currentData() or None

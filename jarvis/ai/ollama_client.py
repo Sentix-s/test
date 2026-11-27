@@ -19,7 +19,7 @@ from typing import Any, Callable, Iterator
 
 import httpx
 
-from jarvis.ai.types import ChatChunk, ChatResult, Message, ToolCall
+from jarvis.ai.types import ChatChunk, ChatResult, Message, ToolCall, clean_text
 from jarvis.core.cancellation import CancelToken
 from jarvis.core.errors import LLMError, LLMUnavailableError, ModelNotFoundError, TaskCancelled
 
@@ -161,6 +161,7 @@ class OllamaClient:
         if think is not None:
             payload["think"] = think
 
+        pending = ""
         try:
             with self._http.stream("POST", "/api/chat", json=payload) as resp:
                 if cancel is not None:
@@ -179,8 +180,13 @@ class OllamaClient:
                     if "error" in data:
                         raise LLMError(f"Ollama: {data['error']}")
                     msg = data.get("message") or {}
+                    content = pending + (msg.get("content") or "")
+                    pending = ""
+                    # An emoji may be split between two tokens: hold a trailing high surrogate for the next chunk.
+                    if content and "\ud800" <= content[-1] <= "\udbff" and not data.get("done"):
+                        content, pending = content[:-1], content[-1]
                     chunk = ChatChunk(
-                        content=msg.get("content") or "",
+                        content=clean_text(content),
                         thinking=msg.get("thinking") or "",
                         tool_calls=[ToolCall.from_ollama(tc) for tc in msg.get("tool_calls") or []],
                         done=bool(data.get("done")),
