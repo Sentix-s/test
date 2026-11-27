@@ -32,6 +32,7 @@ jobs:
       - run: python -m pytest -q
         env:
           QT_QPA_PLATFORM: offscreen
+          JARVIS_TEST_NET: ${{ runner.os == 'Windows' && '1' || '0' }}
 
   # Voice on a clean Windows machine with real models from HuggingFace:
   # every catalog voice URL, Piper synthesis, Whisper recognition, wake word.

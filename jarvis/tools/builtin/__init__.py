@@ -7,8 +7,9 @@ from jarvis.tools.base import ToolRegistry
 
 
 def register_builtin_tools(registry: ToolRegistry) -> ToolRegistry:
-    from jarvis.tools.builtin import memory_tools, system
+    from jarvis.tools.builtin import memory_tools, pc_tools, system
 
     registry.register_module(system)
     registry.register_module(memory_tools)
+    registry.register_module(pc_tools)
     return registry
