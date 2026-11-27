@@ -157,10 +157,16 @@ jobs:
         with:
           name: JARVIS-Setup
           path: dist-installer/*.exe
+      - name: Remove the previous "latest" release (one current installer only)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete jarvis-latest --cleanup-tag --yes --repo ${{ github.repository }}; exit 0
       - name: Publish to Releases (jarvis-latest)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: jarvis-latest
+          target_commitish: ${{ github.sha }}
           name: JARVIS (последняя сборка)
           prerelease: true
           files: dist-installer/*.exe
