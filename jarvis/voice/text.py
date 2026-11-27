@@ -118,6 +118,9 @@ def is_stop_phrase(text: str, stop_phrases: list[str]) -> bool:
     # ASR often garbles the short "Всё, спасибо" ("всего раз спасибо", "все спасибо вам").
     if len(words) <= 3 and words[0].startswith("вс") and "спасибо" in words[1:]:
         return True
+    # A short phrase ending in thanks ("ок, спасибо", "хорошо, спасибо", ASR's "сейчас, спасибо") closes the session.
+    if len(words) <= 3 and words[-1] in ("спасибо", "благодарю", "thanks"):
+        return True
     for phrase in stop_phrases:
         p = normalize(phrase)
         if n == p or (n.startswith(p) and len(n) - len(p) <= 12):
