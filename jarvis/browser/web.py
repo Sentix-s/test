@@ -132,26 +132,82 @@ def _walk(node: Any, key: str):
             yield from _walk(item, key)
 
 
+_INITIAL_MARKERS = ('var ytInitialData =', 'window["ytInitialData"] =', "window['ytInitialData'] =", "ytInitialData =")
+
+
+def _js_string(html: str, start: int) -> str:
+    """Read a JS string literal starting at html[start] (a quote) and unescape \\xNN / \\uNNNN."""
+    quote = html[start]
+    i, out = start + 1, []
+    while i < len(html):
+        ch = html[i]
+        if ch == "\\" and i + 1 < len(html):
+            nxt = html[i + 1]
+            if nxt == "x":
+                out.append(chr(int(html[i + 2:i + 4], 16)))
+                i += 4
+                continue
+            if nxt == "u":
+                out.append(chr(int(html[i + 2:i + 6], 16)))
+                i += 6
+                continue
+            out.append({"n": "\n", "t": "\t", "r": "\r"}.get(nxt, nxt))
+            i += 2
+            continue
+        if ch == quote:
+            break
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def extract_initial_data(html: str) -> Any:
+    """ytInitialData in any of the forms YouTube serves: an object literal or an escaped string."""
+    decoder = json.JSONDecoder()
+    for marker in _INITIAL_MARKERS:
+        pos = html.find(marker)
+        while pos >= 0:
+            j = pos + len(marker)
+            while j < len(html) and html[j] in " \t\r\n":
+                j += 1
+            try:
+                if j < len(html) and html[j] == "{":
+                    return decoder.raw_decode(html, j)[0]
+                if j < len(html) and html[j] in "'\"":
+                    return json.loads(_js_string(html, j))
+            except (ValueError, IndexError):
+                pass
+            pos = html.find(marker, pos + 1)
+    return None
+
+
 def parse_youtube_results(html: str, limit: int = 5) -> list[Video]:
     videos: list[Video] = []
-    m = re.search(r"var ytInitialData\s*=\s*(\{.*?\});\s*</script>", html, re.DOTALL)
-    if m:
-        try:
-            data = json.loads(m.group(1))
-        except json.JSONDecodeError:
-            data = None
-        if data is not None:
-            seen: set[str] = set()
-            for r in _walk(data, "videoRenderer"):
-                vid = r.get("videoId")
-                if not vid or vid in seen:
-                    continue
-                seen.add(vid)
-                videos.append(Video(vid, _text(r.get("title")), _text(r.get("ownerText")),
-                                    _text(r.get("lengthText")), _text(r.get("viewCountText"))))
-                if len(videos) >= limit:
-                    break
+    data = extract_initial_data(html)
+    if data is not None:
+        seen: set[str] = set()
+        for r in _walk(data, "videoRenderer"):
+            vid = r.get("videoId")
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            videos.append(Video(vid, _text(r.get("title")), _text(r.get("ownerText")),
+                                _text(r.get("lengthText")), _text(r.get("viewCountText"))))
+            if len(videos) >= limit:
+                break
+        # Newer YouTube layout: lockupViewModel cards.
+        for r in _walk(data, "lockupViewModel"):
+            if len(videos) >= limit:
+                break
+            vid = r.get("contentId")
+            if not vid or vid in seen or "VIDEO" not in str(r.get("contentType", "VIDEO")):
+                continue
+            seen.add(vid)
+            meta = (r.get("metadata") or {}).get("lockupMetadataViewModel") or {}
+            title = ((meta.get("title") or {}).get("content")) or ""
+            videos.append(Video(vid, str(title)))
     if not videos:  # page format changed: plain ids
+        log.warning("YouTube page format not recognised; using bare video ids")
         seen = set()
         for vid in re.findall(r'"videoId":"([\w-]{11})"', html):
             if vid not in seen:

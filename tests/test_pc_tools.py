@@ -89,6 +89,26 @@ def test_parse_youtube_results():
     assert web.parse_youtube_results("<html></html>") == []
 
 
+def test_parse_youtube_page_variants():
+    payload = YT_HTML.split("var ytInitialData = ", 1)[1].split(";</script>", 1)[0]
+    data = json.loads(payload)
+    window_form = f'<script>window["ytInitialData"] = {payload};window["x"]=1;</script>'
+    escaped = "".join(f"\\x{ord(c):02x}" if c in '{}"' else c for c in json.dumps(data, ensure_ascii=False))
+    string_form = f"<script>var ytInitialData = '{escaped}';</script>"
+    trailing = YT_HTML.replace(";</script>", "; var other = {\"a\": 1};</script>")
+    for html in (window_form, string_form, trailing):
+        v = web.parse_youtube_results(html)
+        assert [x.title for x in v] == ["lofi hip hop radio", "second"], html[:80]
+
+
+def test_parse_youtube_lockup_layout():
+    data = {"contents": [{"lockupViewModel": {"contentId": "dQw4w9WgXcQ", "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+            "metadata": {"lockupMetadataViewModel": {"title": {"content": "Новая раскладка"}}}}},
+            {"lockupViewModel": {"contentId": "PLxxxxxxxxx", "contentType": "LOCKUP_CONTENT_TYPE_PLAYLIST"}}]}
+    v = web.parse_youtube_results(f"<script>var ytInitialData = {json.dumps(data)};</script>")
+    assert [(x.video_id, x.title) for x in v] == [("dQw4w9WgXcQ", "Новая раскладка")]
+
+
 def test_youtube_open(monkeypatch):
     opened = []
     monkeypatch.setattr(web, "open_url", lambda url, browser="default": opened.append((url, browser)) or browser)
@@ -154,4 +174,11 @@ def test_real_start_menu_catalog():
 def test_real_youtube_search():
     videos = web.youtube_search("lofi hip hop radio")
     print("youtube:", [(v.video_id, v.title, v.channel) for v in videos])
+    if videos and not videos[0].title:  # diagnostics for a new page format
+        import httpx
+        html = httpx.get(web.youtube_search_url("lofi hip hop radio"), headers={"User-Agent": web.UA},
+                         cookies={"CONSENT": "YES+cb", "SOCS": "CAI"}, follow_redirects=True).text
+        for marker in ("ytInitialData", "videoRenderer", "lockupViewModel", "compactVideoRenderer"):
+            i = html.find(marker)
+            print(marker, i, repr(html[max(0, i - 60):i + 120]) if i >= 0 else "")
     assert videos and len(videos[0].video_id) == 11 and videos[0].title
