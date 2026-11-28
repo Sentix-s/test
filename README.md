@@ -125,4 +125,4 @@ pytest            # 116+ тестов: эмулятор Ollama, реальные
 ```
 
 Документация: [архитектура и оценка стека](docs/ARCHITECTURE.md) ·
-[план фаз](docs/ROADMAP.md) · [отчёт Phase 1](docs/reports/PHASE1.md) · [отчёт Phase 2–3](docs/reports/PHASE2-3.md).
+[план фаз](docs/ROADMAP.md) · [отчёт Phase 1](docs/reports/PHASE1.md) · [отчёт Phase 2–3](docs/reports/PHASE2-3.md) · [как устроен и как чинить](docs/HOW_IT_WORKS.md).
