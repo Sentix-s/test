@@ -1,0 +1,4 @@
+# Скачивание видео (TikTok, а заодно YouTube Shorts, Reels и др.). Часто обновляется — start.bat обновляет его сам.
+yt-dlp[default,curl-cffi]
+# Распознавание речи (Whisper, работает локально). Видео читает сам, отдельный ffmpeg не нужен.
+faster-whisper>=1.1

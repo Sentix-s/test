@@ -11,3 +11,4 @@ tests/.models/
 packaging/dist/
 packaging/build/
 dist-installer/
+tiktok_transcriber/settings.json
