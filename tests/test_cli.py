@@ -63,3 +63,19 @@ def test_invalid_config_exit_code(tmp_path, fake_ollama):
     (tmp_path / "config" / "settings.yaml").write_text("voice:\n  idle_timeout_seconds: 3\n", encoding="utf-8")
     r = jarvis(tmp_path, fake_ollama.url, "config")
     assert r.returncode == 2 and "idle_timeout_seconds" in r.stdout
+
+
+def test_no_console_streams_do_not_break_downloads():
+    """Real bug from the user's PC: model download in JARVIS.exe (no console) crashed in tqdm."""
+    code = (
+        "import sys; sys.stdout = None; sys.stderr = None\n"
+        "from jarvis.__main__ import ensure_std_streams; ensure_std_streams()\n"
+        "from tqdm import tqdm; list(tqdm(range(3)))\n"
+        "import os; assert os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] == '1'\n"
+        "open(sys.argv[1], 'w').write('ok')\n"
+    )
+    import tempfile
+    marker = Path(tempfile.mkdtemp()) / "ok.txt"
+    r = subprocess.run([sys.executable, "-c", code, str(marker)], capture_output=True, text=True,
+                       env={**os.environ, "PYTHONPATH": str(ROOT)}, timeout=60)
+    assert r.returncode == 0 and marker.read_text() == "ok", r.stderr

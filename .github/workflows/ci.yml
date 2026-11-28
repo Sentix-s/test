@@ -127,6 +127,14 @@ jobs:
           & "$app\jarvis-cli.exe" --version
           & "$app\jarvis-cli.exe" --home "$env:RUNNER_TEMP\fh" say "Проверка установленной версии." --out "$env:RUNNER_TEMP\f.wav"
           if ($LASTEXITCODE -ne 0) { throw "say failed" }
+          # The windowed exe has no console (sys.stdout is None): it must still download a Whisper model
+          # and recognise speech - this broke on a real PC in 0.3.1.
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\fh\config" | Out-Null
+          Set-Content "$env:RUNNER_TEMP\fh\config\settings.yaml" "voice:`n  stt_model: tiny`n  stt_device: cpu"
+          $t = Start-Process "$app\JARVIS.exe" -ArgumentList "--home","$env:RUNNER_TEMP\fh","transcribe","$env:RUNNER_TEMP\f.wav" -PassThru -Wait
+          Get-Content "$env:RUNNER_TEMP\fh\logs\jarvis.log" -Tail 8
+          if ($t.ExitCode -ne 0) { throw "windowed JARVIS.exe could not download/run speech recognition: $($t.ExitCode)" }
+          if (-not (Test-Path "$env:RUNNER_TEMP\fh\data\models\whisper\tiny\model.bin")) { throw "whisper model not downloaded" }
           $p = Start-Process "$app\JARVIS.exe" -ArgumentList "--home","$env:RUNNER_TEMP\fh","gui","--smoke" -PassThru -Wait
           Get-Content "$env:RUNNER_TEMP\fh\logs\jarvis.log" -Tail 5
           if ($p.ExitCode -ne 0) { throw "GUI smoke test failed: $($p.ExitCode)" }

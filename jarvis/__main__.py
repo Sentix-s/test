@@ -13,6 +13,16 @@ from jarvis import __version__
 log = logging.getLogger("jarvis")
 
 
+def ensure_std_streams() -> None:
+    """JARVIS.exe has no console: sys.stdout/sys.stderr are None there, and any library that
+    prints progress (huggingface_hub/tqdm while downloading models) crashes with
+    "'NoneType' object has no attribute 'write'". Give them a harmless sink."""
+    for name in ("stdout", "stderr"):
+        if getattr(sys, name) is None:
+            setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115 - lives for the process
+            os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
+
 def _configure_console() -> None:
     # Windows consoles default to a legacy code page; force UTF-8 for Russian text.
     for stream in (sys.stdout, sys.stderr):
@@ -50,6 +60,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    ensure_std_streams()
     try:
         return _main(argv)
     except KeyboardInterrupt:
